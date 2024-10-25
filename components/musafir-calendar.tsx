@@ -18,6 +18,8 @@ const MONTHS = [
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
+const COLLEGE = ["GURU NANAK DEV UNIVERSITY AMRITSAR" , "GURU NANAK DEV UNIVERSITY VERKA" , "GURU NANAK DEV UNIVERSITY JALANDHAR"]
+
 const DOMAINS = ['Technical', 'Creative', 'Cultural', 'Trips', 'Sports', 'Placement', 'Others']
 
 interface Event {
@@ -45,6 +47,7 @@ export default function Component() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [selectedDomain, setSelectedDomain] = useState<string>('')
+  const [selectedCollege, setSelectedCollege] = useState<string>('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [showEventDetails, setShowEventDetails] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -52,21 +55,36 @@ export default function Component() {
   const [securityCode, setSecurityCode] = useState('')
 
   useEffect(() => {
-    setShowEventDetails(false)
-  }, [selectedYear, selectedMonth])
+    const loadEvents = () => {
+      const storedEvents = localStorage.getItem('events')
+      if (storedEvents) {
+        try {
+          const parsedEvents = JSON.parse(storedEvents)
+          console.log('Loaded events from localStorage:', parsedEvents)
+          setEvents(parsedEvents)
+        } catch (error) {
+          console.error('Error parsing stored events:', error)
+          setEvents({})
+        }
+      }
+    }
 
-  useEffect(() => {
-    const storedEvents = localStorage.getItem('events')
-    if (storedEvents) {
-      const parsedEvents = JSON.parse(storedEvents)
-      console.log('Loaded events from localStorage:', parsedEvents);
-      setEvents(parsedEvents)
+    loadEvents()
+    window.addEventListener('storage', loadEvents)
+
+    return () => {
+      window.removeEventListener('storage', loadEvents)
     }
   }, [])
 
   useEffect(() => {
-    localStorage.setItem('events', JSON.stringify(events))
-  }, [events])
+    setShowEventDetails(false)
+  }, [selectedYear, selectedMonth])
+
+  const saveEvents = (updatedEvents: Record<string, Event[]>) => {
+    localStorage.setItem('events', JSON.stringify(updatedEvents))
+    setEvents(updatedEvents)
+  }
 
   const getDaysInMonth = (year: number, month: number): number => {
     return new Date(year, month + 1, 0).getDate()
@@ -96,13 +114,14 @@ export default function Component() {
     const newEvent = Object.fromEntries(formData.entries()) as unknown as Event
     
     newEvent.id = Date.now().toString()
-    setEvents(prev => ({
-      ...prev,
-      [selectedDate!]: [...(prev[selectedDate!] || []), newEvent].sort((a, b) => 
+    const updatedEvents = {
+      ...events,
+      [selectedDate!]: [...(events[selectedDate!] || []), newEvent].sort((a, b) => 
         a.startTime.localeCompare(b.startTime) || 
         (a.startPeriod === 'AM' && b.startPeriod === 'PM' ? -1 : 1)
       )
-    }))
+    }
+    saveEvents(updatedEvents)
     setIsDialogOpen(false)
     setSecurityCode('')
     event.currentTarget.reset()
@@ -125,14 +144,15 @@ export default function Component() {
     const formData = new FormData(event.currentTarget)
     const updatedEvent = Object.fromEntries(formData.entries()) as unknown as Event
     
-    setEvents(prev => ({
-      ...prev,
-      [selectedDate!]: prev[selectedDate!].map(e => e.id === editingEvent!.id ? {...updatedEvent, id: e.id} : e)
+    const updatedEvents = {
+      ...events,
+      [selectedDate!]: events[selectedDate!].map(e => e.id === editingEvent!.id ? {...updatedEvent, id: e.id} : e)
         .sort((a, b) => 
           a.startTime.localeCompare(b.startTime) || 
           (a.startPeriod === 'AM' && b.startPeriod === 'PM' ? -1 : 1)
         )
-    }))
+    }
+    saveEvents(updatedEvents)
     setEditingEvent(null)
     setIsDialogOpen(false)
     setSecurityCode('')
@@ -152,42 +172,30 @@ export default function Component() {
       return
     }
     if (!selectedDate || !eventToDelete) {
-      console.log('No event selected for deletion');
+      console.log('No event selected for deletion')
       toast({
         title: "Error",
         description: "No event selected for deletion",
         variant: "destructive",
       })
-      return;
+      return
     }
   
-    setEvents(prev => {
-      console.log('Previous events:', prev);
-      const updatedEvents = {...prev};
-      if (updatedEvents[selectedDate]) {
-        updatedEvents[selectedDate] = updatedEvents[selectedDate].filter(e => e.id !== eventToDelete.id);
-        if (updatedEvents[selectedDate].length === 0) {
-          delete updatedEvents[selectedDate];
-        }
+    const updatedEvents = {...events}
+    if (updatedEvents[selectedDate]) {
+      updatedEvents[selectedDate] = updatedEvents[selectedDate].filter(e => e.id !== eventToDelete.id)
+      if (updatedEvents[selectedDate].length === 0) {
+        delete updatedEvents[selectedDate]
       }
-      console.log('Updated events:', updatedEvents);
-      
-      // Force update of localStorage
-      localStorage.setItem('events', JSON.stringify(updatedEvents));
-      
-      return updatedEvents;
-    });
+    }
+    saveEvents(updatedEvents)
   
-    console.log('Event deleted successfully');
-    setIsDeleteDialogOpen(false);
-    setEventToDelete(null);
-    setShowEventDetails(false);
+    console.log('Event deleted successfully')
+    setIsDeleteDialogOpen(false)
+    setEventToDelete(null)
+    setShowEventDetails(false)
     setSecurityCode('')
   
-    // Force re-render
-    setSelectedDate(null);
-    setTimeout(() => setSelectedDate(selectedDate), 0);
-
     toast({
       title: "Success",
       description: "Event deleted successfully",
@@ -214,12 +222,12 @@ export default function Component() {
   }
 
   return (
-    <div className="min-h-screen bg-amber-50 text-amber-900 flex flex-col">
-      <div className="bg-amber-800 text-white p-4 flex items-center">
+    <div className="min-h-screen bg-blue-50 text-blue-900 flex flex-col">
+      <div className="bg-blue-800 text-white p-4 flex items-center">
         <div className="w-16 h-16 bg-white rounded-full mr-4"></div>
         <h1 className="text-4xl font-bold">Musafir Calendar</h1>
       </div>
-      <div className="flex justify-between items-center p-4 bg-amber-100">
+      <div className="flex justify-between items-center p-4 bg-blue-100">
         <div className="flex space-x-2">
           <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
             <SelectTrigger className="w-[120px]">
@@ -253,7 +261,7 @@ export default function Component() {
           </Button>
         </div>
         <div className="relative">
-          <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-amber-500" />
+          <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-500" />
           <Input 
             type="text" 
             placeholder="Search events..." 
@@ -267,16 +275,16 @@ export default function Component() {
         {viewMode === 'calendar' ? (
           <div className="grid grid-cols-7 gap-1 h-full">
             {DAYS.map(day => (
-              <div key={day} className="text-center font-bold p-2 bg-amber-200">{day}</div>
+              <div key={day} className="text-center font-bold p-2 bg-blue-200">{day}</div>
             ))}
             {Array.from({length: getFirstDayOfMonth(selectedYear, selectedMonth)}, (_, i) => (
-              <div key={`empty-${i}`} className="p-2 bg-amber-100"></div>
+              <div key={`empty-${i}`} className="p-2 bg-blue-100"></div>
             ))}
             {Array.from({length: getDaysInMonth(selectedYear, selectedMonth)}, (_, i) => i + 1).map(day => (
               <div
                 key={day}
-                className={`p-2 border border-amber-200 cursor-pointer hover:bg-amber-100 ${
-                  selectedDate === `${selectedYear}-${(selectedMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}` ? 'bg-amber-300' : 'bg-white'
+                className={`p-2 border border-blue-200 cursor-pointer hover:bg-blue-100 ${
+                  selectedDate === `${selectedYear}-${(selectedMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}` ? 'bg-blue-300' : 'bg-white'
                 }`}
                 onClick={() => handleDateClick(day)}
               >
@@ -295,7 +303,7 @@ export default function Component() {
                   <h3 className="font-bold text-lg">{event.date}</h3>
                   <div className="mt-2">
                     <p className="font-semibold text-lg">{event.title}</p>
-                    <p className="text-amber-700">{event.community}</p>
+                    <p className="text-blue-700">{event.community}</p>
                     <p>{formatTime(event.startTime, event.startPeriod)} - {formatTime(event.endTime, event.endPeriod)}</p>
                     {event.domain === 'Trips' && <p>{event.startDate} - {event.endDate}</p>}
                     <p className="mt-2 text-sm">{event.description}</p>
@@ -327,8 +335,17 @@ export default function Component() {
                 <Input id="organizer" name="organizer" defaultValue={editingEvent?.organizer || ''} required />
               </div>
               <div>
-                <Label htmlFor="college">College/University Name</Label>
-                <Input id="college" name="college" defaultValue={editingEvent?.college || ''} required />
+                <Label htmlFor="college/">Select University</Label>
+                <Select defaultValue={editingEvent?.college || selectedCollege} onValueChange={setSelectedCollege}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select University" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COLLEGE.map(college => (
+                      <SelectItem key={college} value={college}>{college}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="domain">Domain</Label>
@@ -421,10 +438,10 @@ export default function Component() {
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
             {events[selectedDate!]?.map(event => (
-              <div key={event.id} className="mt-2 p-4 bg-amber-100 rounded-lg flex justify-between items-start">
+              <div key={event.id} className="mt-2 p-4 bg-blue-100 rounded-lg flex justify-between items-start">
                 <div>
                   <p className="font-semibold text-lg">{event.title}</p>
-                  <p className="text-amber-700">{event.community}</p>
+                  <p className="text-blue-700">{event.community}</p>
                   <p>{formatTime(event.startTime, event.startPeriod)} - {formatTime(event.endTime, event.endPeriod)}</p>
                   {event.domain === 'Trips' && <p>{event.startDate} - {event.endDate}</p>}
                   <p>{event.organizer} - {event.college}</p>
@@ -493,4 +510,4 @@ export default function Component() {
       </Dialog>
     </div>
   )
-};
+}
