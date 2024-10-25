@@ -206,10 +206,11 @@ export default function Component() {
     eventList.map(event => ({ ...event, date }))
   ).filter(event => 
     event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.community.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.organizer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.college.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.description.toLowerCase().includes(searchTerm.toLowerCase())
+    event.community?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    event.organizer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    event.college?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    event.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    
   ).sort((a, b) => 
     a.date.localeCompare(b.date) || 
     a.startTime.localeCompare(b.startTime) || 
